@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم Scout - إدارة المحتوى</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">🔷</span>
+        <span class="logo-text">Scout Admin</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">لوحة التحكم</span>
+      </a>
+      <a href="#" class="nav-item" data-section="content">
+        <span class="nav-icon">📚</span>
+        <span class="nav-text">المحتوى</span>
+      </a>
+      <a href="#" class="nav-item" data-section="upload">
+        <span class="nav-icon">📤</span>
+        <span class="nav-text">رفع ملفات</span>
+      </a>
+      <a href="#" class="nav-item" data-section="categories">
+        <span class="nav-icon">📁</span>
+        <span class="nav-text">التصنيفات</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-title">
+        <h1 id="page-title">لوحة التحكم</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" id="quick-upload-btn">
+          <span>📤</span> رفع سريع
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Section -->
+    <section id="dashboard-section" class="section active">
+      <div class="stats-grid">
+        <div class="stat-card clickable" data-type="pdf">
+          <div class="stat-icon pdf">📄</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-pdf">0</span>
+            <span class="stat-label">ملفات PDF</span>
+          </div>
+        </div>
+        <div class="stat-card clickable" data-type="image">
+          <div class="stat-icon image">🖼️</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-images">0</span>
+            <span class="stat-label">صور</span>
+          </div>
+        </div>
+        <div class="stat-card clickable" data-type="video">
+          <div class="stat-icon video">🎬</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-videos">0</span>
+            <span class="stat-label">فيديوهات</span>
+          </div>
+        </div>
+        <div class="stat-card clickable" data-type="presentation">
+          <div class="stat-icon presentation">📊</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-presentations">0</span>
+            <span class="stat-label">عروض تقديمية</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon views">👁️</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-views">0</span>
+            <span class="stat-label">المشاهدات</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon downloads">⬇️</div>
+          <div class="stat-info">
+            <span class="stat-value" id="stat-downloads">0</span>
+            <span class="stat-label">التحميلات</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="recent-content">
+        <h2>أحدث المحتوى</h2>
+        <div class="content-grid" id="recent-content-grid">
+          <!-- Content cards will be loaded here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <section id="content-section" class="section">
+      <div class="section-header">
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="بحث في المحتوى...">
+          <button class="search-btn">🔍</button>
+        </div>
+        <div class="filter-group">
+          <select id="type-filter">
+            <option value="">كل الأنواع</option>
+            <option value="pdf">PDF</option>
+            <option value="image">صور</option>
+            <option value="video">فيديو</option>
+            <option value="presentation">عروض</option>
+          </select>
+          <select id="category-filter">
+            <option value="">كل التصنيفات</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="content-table-container">
+        <table class="content-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="select-all"></th>
+              <th>المعاينة</th>
+              <th>العنوان</th>
+              <th>النوع</th>
+              <th>التصنيف</th>
+              <th>الحجم</th>
+              <th>التاريخ</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="content-table-body">
+            <!-- Content rows will be loaded here -->
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <button class="btn btn-secondary" id="prev-page">السابق</button>
+        <span id="page-info">صفحة 1 من 1</span>
+        <button class="btn btn-secondary" id="next-page">التالي</button>
+      </div>
+
+      <div class="bulk-actions" id="bulk-actions" style="display: none;">
+        <span id="selected-count">0 عنصر محدد</span>
+        <button class="btn btn-danger" id="bulk-delete">حذف المحدد</button>
+      </div>
+    </section>
+
+    <!-- Upload Section -->
+    <section id="upload-section" class="section">
+      <div class="upload-container">
+        <div class="upload-zone" id="upload-zone">
+          <div class="upload-icon">📁</div>
+          <h3>اسحب الملفات هنا</h3>
+          <p>أو انقر لاختيار الملفات</p>
+          <p class="supported-types">PDF, صور, فيديو, عروض تقديمية</p>
+          <input type="file" id="file-input" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.wmv,.flv,.ppt,.pptx">
+        </div>
+
+        <div class="upload-form" id="upload-form" style="display: none;">
+          <h3>تفاصيل الملف</h3>
+          <div class="form-group">
+            <label for="upload-title">العنوان</label>
+            <input type="text" id="upload-title" placeholder="عنوان المحتوى">
+          </div>
+          <div class="form-group">
+            <label for="upload-title-ar">العنوان بالعربية</label>
+            <input type="text" id="upload-title-ar" placeholder="العنوان بالعربية">
+          </div>
+          <div class="form-group">
+            <label for="upload-description">الوصف</label>
+            <textarea id="upload-description" placeholder="وصف المحتوى"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="upload-category">التصنيف</label>
+            <select id="upload-category">
+              <option value="">اختر التصنيف</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="upload-tags">الوسوم</label>
+            <input type="text" id="upload-tags" placeholder="وسوم مفصولة بفاصلة">
+          </div>
+          <div class="form-group checkbox-group">
+            <input type="checkbox" id="upload-featured">
+            <label for="upload-featured">محتوى مميز</label>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-secondary" id="cancel-upload">إلغاء</button>
+            <button class="btn btn-primary" id="submit-upload">رفع</button>
+          </div>
+        </div>
+
+        <div class="upload-progress" id="upload-progress" style="display: none;">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <span class="progress-text" id="progress-text">0%</span>
+        </div>
+
+        <div class="upload-queue" id="upload-queue">
+          <!-- Upload queue items will appear here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories Section -->
+    <section id="categories-section" class="section">
+      <div class="section-header">
+        <h2>إدارة التصنيفات</h2>
+        <button class="btn btn-primary" id="add-category-btn">
+          <span>➕</span> إضافة تصنيف
+        </button>
+      </div>
+
+      <div class="categories-grid" id="categories-grid">
+        <!-- Category cards will be loaded here -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Edit Modal -->
+  <div class="modal" id="edit-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>تعديل المحتوى</h2>
+        <button class="modal-close" id="close-edit-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label for="edit-title">العنوان</label>
+          <input type="text" id="edit-title">
+        </div>
+        <div class="form-group">
+          <label for="edit-description">الوصف</label>
+          <textarea id="edit-description"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="edit-category">التصنيف</label>
+          <select id="edit-category">
+            <option value="">بدون تصنيف</option>
+          </select>
+        </div>
+        <div class="form-group checkbox-group">
+          <input type="checkbox" id="edit-featured">
+          <label for="edit-featured">محتوى مميز</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-edit">إلغاء</button>
+        <button class="btn btn-primary" id="save-edit">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal" id="category-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="category-modal-title">إضافة تصنيف</h2>
+        <button class="modal-close" id="close-category-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="category-id">
+        <div class="form-group">
+          <label for="category-name">الاسم (انجليزي)</label>
+          <input type="text" id="category-name" placeholder="Category Name">
+        </div>
+        <div class="form-group">
+          <label for="category-name-ar">الاسم (عربي)</label>
+          <input type="text" id="category-name-ar" placeholder="اسم التصنيف">
+        </div>
+        <div class="form-group">
+          <label for="category-slug">الرابط</label>
+          <input type="text" id="category-slug" placeholder="category-slug">
+        </div>
+        <div class="form-group">
+          <label for="category-description">الوصف</label>
+          <textarea id="category-description" placeholder="وصف التصنيف"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="category-parent">التصنيف الأب</label>
+          <select id="category-parent">
+            <option value="">بدون (تصنيف رئيسي)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="category-icon">الأيقونة</label>
+          <input type="text" id="category-icon" placeholder="📁">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancel-category">إلغاء</button>
+        <button class="btn btn-primary" id="save-category">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div class="modal" id="preview-modal">
+    <div class="modal-content preview-modal-content">
+      <div class="modal-header">
+        <h2 id="preview-title">معاينة المحتوى</h2>
+        <div class="preview-actions">
+          <a href="#" id="preview-download" class="btn btn-primary btn-sm" target="_blank">⬇️ تحميل</a>
+          <button class="modal-close" id="close-preview-modal">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body preview-body" id="preview-body">
+        <!-- Preview content will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <span class="toast-icon"></span>
+    <span class="toast-message"></span>
+  </div>
+
+  <script src="js/app.js?v=7"></script>
+</body>
+
+</html>

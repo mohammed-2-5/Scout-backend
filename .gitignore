@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment
+.env
+
+# Database
+database/*.db
+database/*.db-journal
+scout.db
+*.db
+*.db-journal
+
+# Uploads (optional - include if you want to track files)
+uploads/pdf/*
+uploads/images/*
+uploads/videos/*
+uploads/thumbnails/*
+!uploads/.gitkeep
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
