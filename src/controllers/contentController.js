@@ -3,6 +3,30 @@ const path = require('path');
 const fs = require('fs').promises;
 const { deleteFromCloudinary, getResourceType, getPublicIdFromUrl } = require('../utils/cloudinaryHelper');
 
+// Helper function to transform content URLs for API responses
+function transformContentUrls(item, req) {
+  if (!item) return item;
+
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+  // If file_url is a local path, convert to API endpoint
+  if (item.file_url && item.file_url.startsWith('/uploads/')) {
+    item.file_url = `${baseUrl}/api/v1/content/${item.id}/file`;
+  }
+
+  // If thumbnail_url is a local path, convert to API endpoint
+  if (item.thumbnail_url && item.thumbnail_url.startsWith('/uploads/')) {
+    item.thumbnail_url = `${baseUrl}/api/v1/content/${item.id}/thumbnail`;
+  }
+
+  return item;
+}
+
+// Transform array of content items
+function transformContentArray(items, req) {
+  return items.map(item => transformContentUrls(item, req));
+}
+
 class ContentController {
   // Get all content with filters
   async getAll(req, res) {
@@ -21,9 +45,12 @@ class ContentController {
       const content = await Content.findAll(filters);
       const total = await Content.count(filters);
 
+      // Transform URLs for backward compatibility
+      const transformedContent = transformContentArray(content, req);
+
       res.json({
         success: true,
-        data: content,
+        data: transformedContent,
         pagination: {
           total,
           limit: filters.limit,
@@ -65,9 +92,12 @@ class ContentController {
         }
       }
 
+      // Transform URLs for backward compatibility
+      const transformedContent = transformContentUrls(content, req);
+
       res.json({
         success: true,
-        data: content
+        data: transformedContent
       });
     } catch (error) {
       console.error('Error fetching content:', error);
@@ -325,9 +355,12 @@ class ContentController {
 
       const content = await Content.getPopular(sortBy, limit);
 
+      // Transform URLs for backward compatibility
+      const transformedContent = transformContentArray(content, req);
+
       res.json({
         success: true,
-        data: content
+        data: transformedContent
       });
     } catch (error) {
       console.error('Error fetching popular content:', error);
@@ -345,9 +378,12 @@ class ContentController {
       const limit = parseInt(req.query.limit) || 6;
       const content = await Content.getRelated(req.params.id, limit);
 
+      // Transform URLs for backward compatibility
+      const transformedContent = transformContentArray(content, req);
+
       res.json({
         success: true,
-        data: content
+        data: transformedContent
       });
     } catch (error) {
       console.error('Error fetching related content:', error);
