@@ -53,7 +53,58 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // Static files (for direct file access if needed)
+// First try to serve from local uploads folder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Fallback for /uploads/* when files don't exist locally (Railway ephemeral storage)
+// This redirects to Cloudinary URLs from the database
+app.use('/uploads', async (req, res, next) => {
+  try {
+    const Content = require('./src/models/Content');
+    const requestedPath = req.path;
+
+    // Try to find content by matching the filename in file_path or thumbnail_path
+    const filename = path.basename(requestedPath);
+
+    // Check if this is a thumbnail request
+    const isThumbnail = requestedPath.includes('/thumbnails/');
+
+    // Search for content with matching filename
+    const allContent = await Content.findAll({ limit: 1000 });
+    let matchedContent = null;
+
+    for (const item of allContent) {
+      const itemFilename = item.file_path ? path.basename(item.file_path) : '';
+      const itemThumbnailFilename = item.thumbnail_path ? path.basename(item.thumbnail_path) : '';
+
+      if (itemFilename === filename || itemThumbnailFilename === filename ||
+        filename.includes(itemFilename) || itemFilename.includes(filename.replace('_thumb', '').replace('.jpg', ''))) {
+        matchedContent = item;
+        break;
+      }
+    }
+
+    if (matchedContent) {
+      // Redirect to the appropriate Cloudinary URL
+      const redirectUrl = isThumbnail ? matchedContent.thumbnail_url : matchedContent.file_url;
+
+      if (redirectUrl && redirectUrl.startsWith('http')) {
+        console.log(`📁 Fallback redirect: ${requestedPath} → ${redirectUrl}`);
+        return res.redirect(redirectUrl);
+      }
+    }
+
+    // If no match found, return 404
+    console.log(`📁 File not found: ${requestedPath}`);
+    res.status(404).json({
+      success: false,
+      message: 'File not found'
+    });
+  } catch (error) {
+    console.error('Uploads fallback error:', error);
+    next(error);
+  }
+});
 
 // Admin dashboard static files
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
