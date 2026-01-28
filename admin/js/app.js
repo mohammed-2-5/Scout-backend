@@ -16,6 +16,7 @@ let uploadQueue = [];
 // Initialization
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
+    initMobileNavigation();
     initNavigation();
     initUpload();
     initModals();
@@ -26,6 +27,74 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCategories();
     loadRecentContent();
 });
+
+// ========================================
+// Mobile Navigation
+// ========================================
+function initMobileNavigation() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('mobile-overlay');
+
+    if (!hamburger || !sidebar || !overlay) return;
+
+    // Toggle sidebar on hamburger click
+    hamburger.addEventListener('click', () => {
+        toggleMobileMenu();
+    });
+
+    // Close sidebar on overlay click
+    overlay.addEventListener('click', () => {
+        closeMobileMenu();
+    });
+
+    // Close sidebar when clicking nav items on mobile
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
+            }
+        });
+    });
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeMobileMenu();
+        }
+    });
+
+    // Handle resize events to reset mobile menu state
+    window.addEventListener('resize', debounce(() => {
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
+        }
+    }, 100));
+}
+
+function toggleMobileMenu() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('mobile-overlay');
+
+    hamburger.classList.toggle('active');
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+
+    // Prevent body scroll when menu is open
+    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+}
+
+function closeMobileMenu() {
+    const hamburger = document.getElementById('hamburger-menu');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('mobile-overlay');
+
+    hamburger.classList.remove('active');
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
 
 // ========================================
 // Navigation
@@ -175,7 +244,7 @@ async function loadCategoriesGrid() {
           </div>
         </div>
       `).join('');
-            
+
             // Attach event listeners for category buttons
             document.querySelectorAll('.btn-edit-category').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -247,14 +316,14 @@ async function loadContent() {
           </td>
         </tr>
       `).join('');
-            
+
             // Attach error handlers to images
             document.querySelectorAll('.table-thumbnail').forEach(img => {
-                img.addEventListener('error', function() {
+                img.addEventListener('error', function () {
                     this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50"><rect fill="%23334155" width="50" height="50"/></svg>';
                 });
             });
-            
+
             // Attach event listeners
             attachContentEventListeners();
         } else {
@@ -297,14 +366,14 @@ async function loadRecentContent() {
           </div>
         </div>
       `).join('');
-            
+
             // Attach error handlers to images
             document.querySelectorAll('.content-card-image').forEach(img => {
-                img.addEventListener('error', function() {
+                img.addEventListener('error', function () {
                     this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="280" height="160"><rect fill="%23334155" width="280" height="160"/></svg>';
                 });
             });
-            
+
             // Attach event listeners to content cards
             document.querySelectorAll('.content-card').forEach(card => {
                 card.addEventListener('click', () => {
@@ -879,13 +948,13 @@ function getTypeLabel(type) {
 
 function getFileExtension(filePath, mimeType) {
     if (!filePath && !mimeType) return '';
-    
+
     // Try to get extension from file path
     if (filePath) {
         const match = filePath.match(/\.([^.]+)$/);
         if (match) return match[1].toUpperCase();
     }
-    
+
     // Fallback to mime type
     if (mimeType) {
         const mimeMap = {
@@ -907,7 +976,7 @@ function getFileExtension(filePath, mimeType) {
         };
         return mimeMap[mimeType] || mimeType.split('/')[1]?.toUpperCase() || '';
     }
-    
+
     return '';
 }
 
@@ -993,7 +1062,7 @@ function attachContentEventListeners() {
             viewContent(id);
         });
     });
-    
+
     // Edit buttons
     document.querySelectorAll('.btn-edit').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1001,7 +1070,7 @@ function attachContentEventListeners() {
             editContent(id);
         });
     });
-    
+
     // Delete buttons
     document.querySelectorAll('.btn-delete').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1009,7 +1078,7 @@ function attachContentEventListeners() {
             deleteContent(id);
         });
     });
-    
+
     // Checkbox toggles
     document.querySelectorAll('.row-checkbox').forEach(cb => {
         cb.addEventListener('change', () => {
@@ -1098,7 +1167,7 @@ async function showPreview(id) {
                 // Check if it's a browser-supported video format
                 const supportedFormats = ['video/mp4', 'video/webm', 'video/ogg'];
                 const isSupported = supportedFormats.includes(item.mime_type);
-                
+
                 if (isSupported) {
                     previewContent = `
                         <video controls preload="auto" style="max-width: 100%; max-height: 70vh;">
@@ -1161,7 +1230,7 @@ async function showPreview(id) {
         console.log('Adding active class to modal');
         modal.classList.add('active');
         console.log('Modal classes after:', modal.className);
-        
+
         // If it's a video, try to load and play it
         if (item.type === 'video') {
             setTimeout(() => {
