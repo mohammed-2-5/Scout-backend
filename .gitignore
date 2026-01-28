@@ -6,10 +6,11 @@ yarn.lock
 .env
 
 # Database
-database/*.db
+# Temporarily allow database for deployment
+# database/*.db
 database/*.db-journal
-scout.db
-*.db
+# scout.db
+# *.db
 *.db-journal
 
 # Uploads (optional - include if you want to track files)
