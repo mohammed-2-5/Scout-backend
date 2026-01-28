@@ -7,9 +7,11 @@ WORKDIR /app
 # Install dependencies for sharp (image processing)
 RUN apk add --no-cache \
     python3 \
+    py3-pip \
     make \
     g++ \
-    vips-dev
+    vips-dev \
+    pkgconfig
 
 # Copy package files
 COPY package*.json ./
