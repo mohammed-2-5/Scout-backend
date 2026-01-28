@@ -1,8 +1,9 @@
 const Content = require('../models/Content');
-const thumbnailGenerator = require('../utils/thumbnailGenerator');
+const { uploadToCloudinary, getResourceType, deleteFromCloudinary, getPublicIdFromUrl } = require('../utils/cloudinaryHelper');
 const path = require('path');
 const fs = require('fs').promises;
 const multer = require('multer');
+const os = require('os');
 
 // Define allowed file types
 const ALLOWED_TYPES = {
@@ -30,7 +31,7 @@ const ALLOWED_TYPES = {
 // Get content type from extension
 function getContentType(filename) {
   const ext = path.extname(filename).toLowerCase();
-  
+
   for (const [type, config] of Object.entries(ALLOWED_TYPES)) {
     if (config.extensions.includes(ext)) {
       return type;
@@ -39,7 +40,7 @@ function getContentType(filename) {
   return null;
 }
 
-// Configure multer storage
+// Configure multer storage to use temp directory
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const type = getContentType(file.originalname);
@@ -47,11 +48,12 @@ const storage = multer.diskStorage({
       return cb(new Error('Unsupported file type'), null);
     }
 
-    const uploadDir = path.join(process.env.UPLOAD_DIR || './uploads', type === 'image' ? 'images' : type);
-    
+    // Use OS temp directory for temporary storage
+    const tempDir = path.join(os.tmpdir(), 'scout-uploads');
+
     try {
-      await fs.mkdir(uploadDir, { recursive: true });
-      cb(null, uploadDir);
+      await fs.mkdir(tempDir, { recursive: true });
+      cb(null, tempDir);
     } catch (error) {
       cb(error, null);
     }
@@ -99,22 +101,35 @@ class UploadController {
 
       const file = req.file;
       const type = getContentType(file.originalname);
-      
+
       // Get metadata from request body
       const { title, title_ar, description, category_id, tags, is_featured } = req.body;
-      
+
       // Generate filename for display
       const displayTitle = title || path.basename(file.originalname, path.extname(file.originalname));
-      
-      // Generate thumbnail
-      const thumbnailDir = path.join(process.env.UPLOAD_DIR || './uploads', 'thumbnails');
-      await fs.mkdir(thumbnailDir, { recursive: true });
-      
-      const thumbnailFilename = `thumb_${path.basename(file.filename, path.extname(file.filename))}.jpg`;
-      const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
-      
-      await thumbnailGenerator.generate(file.path, thumbnailPath, type);
-      
+
+      console.log(`📤 Uploading ${file.originalname} to Cloudinary...`);
+
+      // Upload to Cloudinary
+      const cloudinaryResult = await uploadToCloudinary(file.path, type);
+
+      // Clean up temp file
+      try {
+        await fs.unlink(file.path);
+      } catch (cleanupError) {
+        console.log('Warning: Could not delete temp file:', cleanupError.message);
+      }
+
+      if (!cloudinaryResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to upload to cloud storage',
+          error: cloudinaryResult.error
+        });
+      }
+
+      console.log(`✅ Uploaded to Cloudinary: ${cloudinaryResult.url}`);
+
       // Create content record
       const contentData = {
         title: displayTitle,
@@ -122,10 +137,10 @@ class UploadController {
         description: description || '',
         category_id: category_id || null,
         type: type,
-        file_path: file.path,
-        file_url: `/uploads/${type === 'image' ? 'images' : type}/${file.filename}`,
-        thumbnail_path: thumbnailPath,
-        thumbnail_url: `/uploads/thumbnails/${thumbnailFilename}`,
+        file_path: cloudinaryResult.publicId, // Store Cloudinary public ID
+        file_url: cloudinaryResult.url,
+        thumbnail_path: cloudinaryResult.publicId,
+        thumbnail_url: cloudinaryResult.thumbnailUrl,
         file_size: file.size,
         mime_type: file.mimetype,
         tags: tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : [],
@@ -168,16 +183,29 @@ class UploadController {
         try {
           const type = getContentType(file.originalname);
           const displayTitle = path.basename(file.originalname, path.extname(file.originalname));
-          
-          // Generate thumbnail
-          const thumbnailDir = path.join(process.env.UPLOAD_DIR || './uploads', 'thumbnails');
-          await fs.mkdir(thumbnailDir, { recursive: true });
-          
-          const thumbnailFilename = `thumb_${path.basename(file.filename, path.extname(file.filename))}.jpg`;
-          const thumbnailPath = path.join(thumbnailDir, thumbnailFilename);
-          
-          await thumbnailGenerator.generate(file.path, thumbnailPath, type);
-          
+
+          console.log(`📤 Uploading ${file.originalname} to Cloudinary...`);
+
+          // Upload to Cloudinary
+          const cloudinaryResult = await uploadToCloudinary(file.path, type);
+
+          // Clean up temp file
+          try {
+            await fs.unlink(file.path);
+          } catch (cleanupError) {
+            console.log('Warning: Could not delete temp file:', cleanupError.message);
+          }
+
+          if (!cloudinaryResult.success) {
+            errors.push({
+              filename: file.originalname,
+              error: cloudinaryResult.error
+            });
+            continue;
+          }
+
+          console.log(`✅ Uploaded to Cloudinary: ${cloudinaryResult.url}`);
+
           // Create content record
           const contentData = {
             title: displayTitle,
@@ -185,10 +213,10 @@ class UploadController {
             description: '',
             category_id: category_id || null,
             type: type,
-            file_path: file.path,
-            file_url: `/uploads/${type === 'image' ? 'images' : type}/${file.filename}`,
-            thumbnail_path: thumbnailPath,
-            thumbnail_url: `/uploads/thumbnails/${thumbnailFilename}`,
+            file_path: cloudinaryResult.publicId,
+            file_url: cloudinaryResult.url,
+            thumbnail_path: cloudinaryResult.publicId,
+            thumbnail_url: cloudinaryResult.thumbnailUrl,
             file_size: file.size,
             mime_type: file.mimetype,
             tags: [],
@@ -199,7 +227,8 @@ class UploadController {
           results.push({
             id: result.id,
             title: displayTitle,
-            type: type
+            type: type,
+            url: cloudinaryResult.url
           });
         } catch (err) {
           errors.push({
@@ -235,7 +264,7 @@ class UploadController {
     for (const [type, config] of Object.entries(ALLOWED_TYPES)) {
       types[type] = config.extensions;
     }
-    
+
     res.json({
       success: true,
       data: types

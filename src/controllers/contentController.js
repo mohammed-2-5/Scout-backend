@@ -1,6 +1,7 @@
 const Content = require('../models/Content');
 const path = require('path');
 const fs = require('fs').promises;
+const { deleteFromCloudinary, getResourceType, getPublicIdFromUrl } = require('../utils/cloudinaryHelper');
 
 class ContentController {
   // Get all content with filters
@@ -90,20 +91,31 @@ class ContentController {
         });
       }
 
+      // Increment download count
+      await Content.incrementDownloadCount(req.params.id);
+
+      // Check if file_url is a Cloudinary URL (or any external URL)
+      if (content.file_url && (content.file_url.startsWith('http://') || content.file_url.startsWith('https://'))) {
+        // Redirect to Cloudinary URL
+        return res.redirect(content.file_url);
+      }
+
+      // Fallback: Try to serve from local file system (for backward compatibility)
       const filePath = path.resolve(content.file_path);
 
-      // Check if file exists
+      // Check if file exists locally
       try {
         await fs.access(filePath);
       } catch (error) {
+        // File not found locally, check if there's a file_url
+        if (content.file_url) {
+          return res.redirect(content.file_url);
+        }
         return res.status(404).json({
           success: false,
           message: 'File not found on server'
         });
       }
-
-      // Increment download count
-      await Content.incrementDownloadCount(req.params.id);
 
       // Set headers
       res.setHeader('Content-Type', content.mime_type);
@@ -156,7 +168,21 @@ class ContentController {
     try {
       const content = await Content.findById(req.params.id);
 
-      if (!content || !content.thumbnail_path) {
+      if (!content) {
+        return res.status(404).json({
+          success: false,
+          message: 'Content not found'
+        });
+      }
+
+      // Check if thumbnail_url is a Cloudinary URL (or any external URL)
+      if (content.thumbnail_url && (content.thumbnail_url.startsWith('http://') || content.thumbnail_url.startsWith('https://'))) {
+        // Redirect to Cloudinary URL
+        return res.redirect(content.thumbnail_url);
+      }
+
+      // Fallback: Try to serve from local file system
+      if (!content.thumbnail_path) {
         return res.status(404).json({
           success: false,
           message: 'Thumbnail not found'
@@ -165,10 +191,14 @@ class ContentController {
 
       const thumbnailPath = path.resolve(content.thumbnail_path);
 
-      // Check if file exists
+      // Check if file exists locally
       try {
         await fs.access(thumbnailPath);
       } catch (error) {
+        // Return a placeholder or redirect to a default thumbnail
+        if (content.thumbnail_url) {
+          return res.redirect(content.thumbnail_url);
+        }
         return res.status(404).json({
           success: false,
           message: 'Thumbnail file not found'
@@ -247,14 +277,27 @@ class ContentController {
         });
       }
 
-      // Delete files
+      // Try to delete from Cloudinary if it's a Cloudinary URL
+      if (content.file_url && content.file_url.includes('cloudinary.com')) {
+        const publicId = getPublicIdFromUrl(content.file_url);
+        if (publicId) {
+          const resourceType = getResourceType(content.type);
+          console.log(`🗑️ Deleting from Cloudinary: ${publicId} (${resourceType})`);
+          await deleteFromCloudinary(publicId, resourceType);
+        }
+      }
+
+      // Try to delete local files (if they exist)
       try {
-        await fs.unlink(content.file_path);
-        if (content.thumbnail_path) {
+        if (content.file_path && !content.file_path.startsWith('scout/')) {
+          await fs.unlink(content.file_path);
+        }
+        if (content.thumbnail_path && !content.thumbnail_path.startsWith('scout/')) {
           await fs.unlink(content.thumbnail_path);
         }
       } catch (error) {
-        console.error('Error deleting files:', error);
+        // Files might not exist locally, that's fine
+        console.log('Note: Local files not found or already deleted');
       }
 
       // Delete from database
