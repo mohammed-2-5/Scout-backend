@@ -52,57 +52,55 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Static files (for direct file access if needed)
-// First try to serve from local uploads folder
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Fallback for /uploads/* when files don't exist locally (Railway ephemeral storage)
-// This redirects to Cloudinary URLs from the database
+// Custom handler for /uploads/* - checks local file first, then falls back to Cloudinary
+const fs = require('fs');
 app.use('/uploads', async (req, res, next) => {
+  const localPath = path.join(__dirname, 'uploads', req.path);
+
+  // Check if file exists locally
+  if (fs.existsSync(localPath)) {
+    return res.sendFile(localPath);
+  }
+
+  // File doesn't exist locally - try to find Cloudinary URL from database
   try {
     const Content = require('./src/models/Content');
-    const requestedPath = req.path;
-
-    // Try to find content by matching the filename in file_path or thumbnail_path
-    const filename = path.basename(requestedPath);
-
-    // Check if this is a thumbnail request
-    const isThumbnail = requestedPath.includes('/thumbnails/');
+    const filename = path.basename(req.path);
+    const isThumbnail = req.path.includes('/thumbnails/');
 
     // Search for content with matching filename
-    const allContent = await Content.findAll({ limit: 1000 });
-    let matchedContent = null;
+    const allContent = await Content.findAll({ limit: 2000 });
 
     for (const item of allContent) {
-      const itemFilename = item.file_path ? path.basename(item.file_path) : '';
-      const itemThumbnailFilename = item.thumbnail_path ? path.basename(item.thumbnail_path) : '';
+      const itemFilePath = item.file_path || '';
+      const itemThumbnailPath = item.thumbnail_path || '';
+      const itemFilename = path.basename(itemFilePath);
+      const itemThumbnailFilename = path.basename(itemThumbnailPath);
 
-      if (itemFilename === filename || itemThumbnailFilename === filename ||
-        filename.includes(itemFilename) || itemFilename.includes(filename.replace('_thumb', '').replace('.jpg', ''))) {
-        matchedContent = item;
-        break;
+      // Match by exact filename or partial match
+      const filenameClean = filename.replace(/\.[^/.]+$/, '').replace('_thumb', '');
+
+      const isMatch =
+        itemFilename === filename ||
+        itemThumbnailFilename === filename ||
+        filename.includes(filenameClean) ||
+        itemFilename.includes(filenameClean);
+
+      if (isMatch) {
+        const redirectUrl = isThumbnail ? item.thumbnail_url : item.file_url;
+
+        if (redirectUrl && redirectUrl.startsWith('http')) {
+          console.log(`📁 Redirect: ${req.path} → ${redirectUrl}`);
+          return res.redirect(redirectUrl);
+        }
       }
     }
 
-    if (matchedContent) {
-      // Redirect to the appropriate Cloudinary URL
-      const redirectUrl = isThumbnail ? matchedContent.thumbnail_url : matchedContent.file_url;
-
-      if (redirectUrl && redirectUrl.startsWith('http')) {
-        console.log(`📁 Fallback redirect: ${requestedPath} → ${redirectUrl}`);
-        return res.redirect(redirectUrl);
-      }
-    }
-
-    // If no match found, return 404
-    console.log(`📁 File not found: ${requestedPath}`);
-    res.status(404).json({
-      success: false,
-      message: 'File not found'
-    });
+    console.log(`📁 Not found: ${req.path}`);
+    res.status(404).json({ success: false, message: 'File not found' });
   } catch (error) {
-    console.error('Uploads fallback error:', error);
-    next(error);
+    console.error('Uploads handler error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
