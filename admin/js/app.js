@@ -1158,9 +1158,14 @@ async function showPreview(id) {
         let previewContent = '';
         console.log('Content type:', item.type);
 
+        // Use Cloudinary URL directly if available, otherwise fall back to API
+        const fileUrl = (item.file_url && item.file_url.startsWith('http'))
+            ? item.file_url
+            : `${API_BASE}/content/${id}/file`;
+
         switch (item.type) {
             case 'image':
-                previewContent = `<img src="${API_BASE}/content/${id}/file" alt="${item.title}" />`;
+                previewContent = `<img src="${fileUrl}" alt="${item.title}" />`;
                 break;
 
             case 'video':
@@ -1171,7 +1176,7 @@ async function showPreview(id) {
                 if (isSupported) {
                     previewContent = `
                         <video controls preload="auto" style="max-width: 100%; max-height: 70vh;">
-                            <source src="${API_BASE}/content/${id}/file" type="${item.mime_type || 'video/mp4'}">
+                            <source src="${fileUrl}" type="${item.mime_type || 'video/mp4'}">
                             متصفحك لا يدعم تشغيل الفيديو
                         </video>
                     `;
@@ -1183,7 +1188,7 @@ async function showPreview(id) {
                             <p>نوع الفيديو: ${item.mime_type || 'غير معروف'}</p>
                             <p>هذا التنسيق (${item.mime_type?.split('/')[1]?.toUpperCase()}) لا يدعمه المتصفح مباشرة</p>
                             <p>الحجم: ${formatFileSize(item.file_size)}</p>
-                            <a href="${API_BASE}/content/${id}/file" class="btn btn-primary" download>
+                            <a href="${fileUrl}" class="btn btn-primary" download>
                                 ⬇️ تحميل الفيديو لمشاهدته
                             </a>
                         </div>
@@ -1193,7 +1198,7 @@ async function showPreview(id) {
 
             case 'pdf':
                 previewContent = `
-                    <iframe src="${API_BASE}/content/${id}/file#toolbar=1&navpanes=0" 
+                    <iframe src="${fileUrl}#toolbar=1&navpanes=0" 
                             title="${item.title}"></iframe>
                 `;
                 break;
@@ -1204,7 +1209,7 @@ async function showPreview(id) {
                         <div class="preview-placeholder-icon">📊</div>
                         <h3>${item.title}</h3>
                         <p>لا يمكن عرض العروض التقديمية مباشرة في المتصفح</p>
-                        <a href="${API_BASE}/content/${id}/file" class="btn btn-primary" download>
+                        <a href="${fileUrl}" class="btn btn-primary" download>
                             ⬇️ تحميل العرض
                         </a>
                     </div>
@@ -1217,7 +1222,7 @@ async function showPreview(id) {
                         <div class="preview-placeholder-icon">📁</div>
                         <h3>${item.title}</h3>
                         <p>نوع الملف: ${item.mime_type || 'غير معروف'}</p>
-                        <a href="${API_BASE}/content/${id}/file" class="btn btn-primary" download>
+                        <a href="${fileUrl}" class="btn btn-primary" download>
                             ⬇️ تحميل الملف
                         </a>
                     </div>
