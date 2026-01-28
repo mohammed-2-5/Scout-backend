@@ -297,10 +297,16 @@ async function loadContent() {
             totalPages = data.pagination.pages;
             updatePagination();
 
-            tbody.innerHTML = data.data.map(item => `
+            tbody.innerHTML = data.data.map(item => {
+                // Use Cloudinary thumbnail URL directly if available
+                const thumbnailUrl = (item.thumbnail_url && item.thumbnail_url.startsWith('http'))
+                    ? item.thumbnail_url
+                    : `${API_BASE}/content/${item.id}/thumbnail`;
+
+                return `
         <tr data-id="${item.id}">
           <td><input type="checkbox" class="row-checkbox" data-item-id="${item.id}"></td>
-          <td><img src="${API_BASE}/content/${item.id}/thumbnail" class="table-thumbnail" alt="${item.title}"></td>
+          <td><img src="${thumbnailUrl}" class="table-thumbnail" alt="${item.title}"></td>
           <td>${item.title}</td>
           <td>
             <span class="content-type-badge ${item.type}">${getTypeLabel(item.type)}</span>
@@ -315,7 +321,8 @@ async function loadContent() {
             <button class="action-btn btn-delete delete" data-id="${item.id}" title="حذف">🗑️</button>
           </td>
         </tr>
-      `).join('');
+      `;
+            }).join('');
 
             // Attach error handlers to images
             document.querySelectorAll('.table-thumbnail').forEach(img => {
@@ -354,9 +361,15 @@ async function loadRecentContent() {
         const data = await response.json();
 
         if (data.success && data.data.length > 0) {
-            grid.innerHTML = data.data.map(item => `
+            grid.innerHTML = data.data.map(item => {
+                // Use Cloudinary thumbnail URL directly if available
+                const thumbnailUrl = (item.thumbnail_url && item.thumbnail_url.startsWith('http'))
+                    ? item.thumbnail_url
+                    : `${API_BASE}/content/${item.id}/thumbnail`;
+
+                return `
         <div class="content-card" data-id="${item.id}">
-          <img src="${API_BASE}/content/${item.id}/thumbnail" class="content-card-image" alt="${item.title}">
+          <img src="${thumbnailUrl}" class="content-card-image" alt="${item.title}">
           <div class="content-card-body">
             <div class="content-card-title">${item.title}</div>
             <div class="content-card-meta">
@@ -365,7 +378,8 @@ async function loadRecentContent() {
             </div>
           </div>
         </div>
-      `).join('');
+      `;
+            }).join('');
 
             // Attach error handlers to images
             document.querySelectorAll('.content-card-image').forEach(img => {
