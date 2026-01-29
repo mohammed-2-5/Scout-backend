@@ -9,14 +9,19 @@ function transformContentUrls(item, req) {
 
   const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-  // If file_url is a local path, convert to API endpoint
-  if (item.file_url && item.file_url.startsWith('/uploads/')) {
+  // Always transform file_url to use the backend proxy endpoint
+  // This ensures PDFs and other files are served with correct Content-Type headers
+  if (item.file_url && item.id) {
     item.file_url = `${baseUrl}/api/v1/content/${item.id}/file`;
   }
 
-  // If thumbnail_url is a local path, convert to API endpoint
-  if (item.thumbnail_url && item.thumbnail_url.startsWith('/uploads/')) {
-    item.thumbnail_url = `${baseUrl}/api/v1/content/${item.id}/thumbnail`;
+  // Always transform thumbnail_url to use the backend endpoint
+  // except for Cloudinary placeholder images which work correctly
+  if (item.thumbnail_url && item.id) {
+    // Keep Cloudinary placeholder URLs as-is (they work correctly)
+    if (!item.thumbnail_url.includes('/placeholders/')) {
+      item.thumbnail_url = `${baseUrl}/api/v1/content/${item.id}/thumbnail`;
+    }
   }
 
   return item;
