@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3:*)",
+      "Bash(node check-videos.js:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
