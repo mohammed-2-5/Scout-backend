@@ -34,7 +34,8 @@ async function uploadToCloudinary(filePath, type, customPublicId = null) {
         folder: folder,
         resource_type: resourceType,
         overwrite: true,
-        use_filename: true
+        use_filename: true,
+        access_mode: 'public'
     };
 
     if (customPublicId) {
