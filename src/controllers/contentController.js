@@ -126,8 +126,48 @@ class ContentController {
 
       // Check if file_url is a Cloudinary URL (or any external URL)
       if (content.file_url && (content.file_url.startsWith('http://') || content.file_url.startsWith('https://'))) {
-        // Redirect to Cloudinary URL
-        return res.redirect(content.file_url);
+        // Proxy the file from Cloudinary with correct headers
+        const https = require('https');
+        const http = require('http');
+
+        const protocol = content.file_url.startsWith('https://') ? https : http;
+
+        // Determine correct content type
+        let contentType = content.mime_type || 'application/octet-stream';
+        if (content.type === 'pdf' && !contentType.includes('pdf')) {
+          contentType = 'application/pdf';
+        }
+
+        // Set response headers before proxying
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(content.title || 'file')}"`);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+
+        // Proxy the request
+        protocol.get(content.file_url, (proxyRes) => {
+          if (proxyRes.statusCode === 200) {
+            // Forward content-length if available
+            if (proxyRes.headers['content-length']) {
+              res.setHeader('Content-Length', proxyRes.headers['content-length']);
+            }
+            proxyRes.pipe(res);
+          } else {
+            console.error(`Cloudinary returned ${proxyRes.statusCode} for ${content.file_url}`);
+            res.status(proxyRes.statusCode).json({
+              success: false,
+              message: `Failed to fetch file from storage (${proxyRes.statusCode})`
+            });
+          }
+        }).on('error', (error) => {
+          console.error('Error proxying file:', error);
+          res.status(500).json({
+            success: false,
+            message: 'Error streaming file',
+            error: error.message
+          });
+        });
+        return;
       }
 
       // Fallback: Try to serve from local file system (for backward compatibility)
