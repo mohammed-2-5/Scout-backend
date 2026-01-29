@@ -1,4 +1,10 @@
 const cloudinary = require('cloudinary').v2;
+const {
+    CONTENT_TYPES,
+    CLOUDINARY_FOLDERS,
+    CLOUDINARY_RESOURCE_TYPES,
+    THUMBNAIL
+} = require('../constants');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,20 +15,20 @@ cloudinary.config({
 
 // Get folder for file type
 function getCloudinaryFolder(type) {
-    const folders = {
-        'pdf': 'scout/pdfs',
-        'image': 'scout/images',
-        'video': 'scout/videos',
-        'presentation': 'scout/presentations'
+    const folderMap = {
+        [CONTENT_TYPES.PDF]: CLOUDINARY_FOLDERS.PDFS,
+        [CONTENT_TYPES.IMAGE]: CLOUDINARY_FOLDERS.IMAGES,
+        [CONTENT_TYPES.VIDEO]: CLOUDINARY_FOLDERS.VIDEOS,
+        [CONTENT_TYPES.PRESENTATION]: CLOUDINARY_FOLDERS.PRESENTATIONS
     };
-    return folders[type] || 'scout/other';
+    return folderMap[type] || CLOUDINARY_FOLDERS.OTHER;
 }
 
 // Get resource type for Cloudinary
 function getResourceType(type) {
-    if (type === 'video') return 'video';
-    if (type === 'image') return 'image';
-    return 'raw'; // For PDFs and presentations
+    if (type === CONTENT_TYPES.VIDEO) return CLOUDINARY_RESOURCE_TYPES.VIDEO;
+    if (type === CONTENT_TYPES.IMAGE) return CLOUDINARY_RESOURCE_TYPES.IMAGE;
+    return CLOUDINARY_RESOURCE_TYPES.RAW; // For PDFs and presentations
 }
 
 // Upload file to Cloudinary
@@ -47,16 +53,18 @@ async function uploadToCloudinary(filePath, type, customPublicId = null) {
 
         // Generate thumbnail URL
         let thumbnailUrl = result.secure_url;
-        if (type === 'image') {
-            thumbnailUrl = result.secure_url.replace('/upload/', '/upload/c_thumb,w_300,h_300/');
-        } else if (type === 'video') {
-            thumbnailUrl = result.secure_url.replace('/upload/', '/upload/c_thumb,w_300,h_300/').replace(/\.\w+$/, '.jpg');
-        } else if (type === 'pdf') {
-            // PDFs uploaded as raw can't generate thumbnails, use placeholder
-            thumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658672/scout/placeholders/pdf-icon.svg';
-        } else if (type === 'presentation') {
-            // Presentations uploaded as raw can't generate thumbnails, use placeholder
-            thumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658674/scout/placeholders/ppt-icon.svg';
+        const transformation = `/upload/${THUMBNAIL.TRANSFORMATION}/`;
+
+        if (type === CONTENT_TYPES.IMAGE) {
+            thumbnailUrl = result.secure_url.replace('/upload/', transformation);
+        } else if (type === CONTENT_TYPES.VIDEO) {
+            thumbnailUrl = result.secure_url
+                .replace('/upload/', transformation)
+                .replace(/\.\w+$/, '.jpg');
+        } else if (type === CONTENT_TYPES.PDF || type === CONTENT_TYPES.PRESENTATION) {
+            // For PDFs and presentations, thumbnails will be generated locally
+            // and uploaded separately, so we return the full URL for now
+            thumbnailUrl = result.secure_url;
         }
 
         return {

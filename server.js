@@ -4,9 +4,12 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 require('dotenv').config();
 
+const logger = require('./src/utils/logger');
+const swaggerSpec = require('./src/config/swagger');
 const db = require('./src/utils/database');
 const contentRoutes = require('./src/routes/content');
 const categoryRoutes = require('./src/routes/categories');
@@ -33,12 +36,9 @@ app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging middleware
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
+// Logging middleware - integrate Morgan with Winston
+const morganFormat = process.env.NODE_ENV === 'development' ? 'dev' : 'combined';
+app.use(morgan(morganFormat, { stream: logger.stream }));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -90,16 +90,16 @@ app.use('/uploads', async (req, res, next) => {
         const redirectUrl = isThumbnail ? item.thumbnail_url : item.file_url;
 
         if (redirectUrl && redirectUrl.startsWith('http')) {
-          console.log(`📁 Redirect: ${req.path} → ${redirectUrl}`);
+          logger.info(`📁 Redirect: ${req.path} → ${redirectUrl}`);
           return res.redirect(redirectUrl);
         }
       }
     }
 
-    console.log(`📁 Not found: ${req.path}`);
+    logger.warn(`📁 Not found: ${req.path}`);
     res.status(404).json({ success: false, message: 'File not found' });
   } catch (error) {
-    console.error('Uploads handler error:', error);
+    logger.error('Uploads handler error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -107,7 +107,41 @@ app.use('/uploads', async (req, res, next) => {
 // Admin dashboard static files
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 
+// Swagger API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'Scout API Documentation',
+  customCss: '.swagger-ui .topbar { display: none }',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true
+  }
+}));
+
 // Health check endpoint
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check endpoint
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: Server is running
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: ok
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 uptime:
+ *                   type: number
+ *                   description: Server uptime in seconds
+ */
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -122,13 +156,25 @@ app.use(`${apiPrefix}/content`, contentRoutes);
 app.use(`${apiPrefix}/categories`, categoryRoutes);
 
 // Root endpoint
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: API information
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: API information and available endpoints
+ */
 app.get('/', (req, res) => {
   res.json({
     name: 'Scout Content Backend API',
     version: '1.0.0',
     description: 'Backend API for Scout Educational Content Library',
+    documentation: '/api-docs',
     endpoints: {
       health: '/health',
+      docs: '/api-docs',
       content: `${apiPrefix}/content`,
       categories: `${apiPrefix}/categories`,
       stats: `${apiPrefix}/content/stats`
@@ -146,7 +192,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('Error:', err);
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error',
@@ -158,29 +204,29 @@ app.use((err, req, res, next) => {
 async function startServer() {
   try {
     await db.connect();
-    console.log('Database initialized successfully');
+    logger.info('Database initialized successfully');
 
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on port ${PORT}`);
-      console.log(`📝 API: http://localhost:${PORT}${apiPrefix}`);
-      console.log(`💚 Health: http://localhost:${PORT}/health`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+      logger.info(`🚀 Server running on port ${PORT}`);
+      logger.info(`📝 API: http://localhost:${PORT}${apiPrefix}`);
+      logger.info(`💚 Health: http://localhost:${PORT}/health`);
+      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  logger.info('🛑 Shutting down gracefully...');
   await db.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down gracefully...');
+  logger.info('🛑 Shutting down gracefully...');
   await db.close();
   process.exit(0);
 });

@@ -161,7 +161,8 @@ class Content {
         SUM(CASE WHEN type = 'video' THEN 1 ELSE 0 END) as total_videos,
         SUM(CASE WHEN type = 'presentation' THEN 1 ELSE 0 END) as total_presentations,
         SUM(view_count) as total_views,
-        SUM(download_count) as total_downloads
+        SUM(download_count) as total_downloads,
+        (SELECT COUNT(*) FROM categories) as total_categories
       FROM content
     `;
     return await db.get(sql);

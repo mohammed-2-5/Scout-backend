@@ -1,6 +1,7 @@
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs').promises;
+const pdfThumbnail = require('pdf-thumbnail');
 
 class ThumbnailGenerator {
   constructor() {
@@ -27,17 +28,25 @@ class ThumbnailGenerator {
 
   async generatePdfThumbnail(inputPath, outputPath) {
     try {
-      // For PDF thumbnails, we'll use a placeholder approach
-      // In production, you can use pdf-thumbnail or pdf-to-img packages
-      // For now, create a simple placeholder
-      const placeholderPath = path.join(__dirname, '../../uploads/thumbnails/pdf-placeholder.jpg');
+      // Generate actual PDF thumbnail from first page
+      const thumbnail = await pdfThumbnail(inputPath, {
+        compress: {
+          type: 'JPEG',
+          quality: 80
+        },
+        width: this.thumbnailWidth,
+        height: this.thumbnailHeight
+      });
 
-      // Check if placeholder exists, if not create one
+      // Save the thumbnail
+      await fs.writeFile(outputPath, thumbnail);
+
+      return outputPath;
+    } catch (error) {
+      console.error('Error generating PDF thumbnail:', error);
+
+      // Fallback to placeholder if PDF thumbnail generation fails
       try {
-        await fs.access(placeholderPath);
-        await fs.copyFile(placeholderPath, outputPath);
-      } catch (error) {
-        // Create a simple colored square as placeholder
         await sharp({
           create: {
             width: this.thumbnailWidth,
@@ -57,12 +66,12 @@ class ThumbnailGenerator {
         }])
         .jpeg()
         .toFile(outputPath);
-      }
 
-      return outputPath;
-    } catch (error) {
-      console.error('Error generating PDF thumbnail:', error);
-      return null;
+        return outputPath;
+      } catch (fallbackError) {
+        console.error('Error generating fallback thumbnail:', fallbackError);
+        return null;
+      }
     }
   }
 
