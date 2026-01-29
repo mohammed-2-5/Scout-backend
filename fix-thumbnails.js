@@ -40,15 +40,12 @@ db.all('SELECT id, title, type, file_url, thumbnail_url FROM content', (err, row
         .replace('/upload/', '/upload/c_thumb,w_300,h_300/')
         .replace(/\.\w+$/, '.jpg');
     } else if (content.type === 'pdf') {
-      // For PDFs: use first page as thumbnail
-      newThumbnailUrl = content.file_url
-        .replace('/upload/', '/upload/c_thumb,w_300,h_300,pg_1/')
-        .replace('.pdf', '.jpg');
+      // For PDFs: use a placeholder since raw uploads can't generate thumbnails
+      // Using a generic PDF icon placeholder
+      newThumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658672/scout/placeholders/pdf-icon.svg';
     } else if (content.type === 'presentation') {
-      // For presentations: use first slide as thumbnail
-      newThumbnailUrl = content.file_url
-        .replace('/upload/', '/upload/c_thumb,w_300,h_300,pg_1/')
-        .replace(/\.(ppt|pptx)$/i, '.jpg');
+      // For presentations: use a placeholder since raw uploads can't generate thumbnails
+      newThumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658674/scout/placeholders/ppt-icon.svg';
     }
 
     // Update database

@@ -51,7 +51,11 @@ async function uploadToCloudinary(filePath, type, customPublicId = null) {
         } else if (type === 'video') {
             thumbnailUrl = result.secure_url.replace('/upload/', '/upload/c_thumb,w_300,h_300/').replace(/\.\w+$/, '.jpg');
         } else if (type === 'pdf') {
-            thumbnailUrl = result.secure_url.replace('/upload/', '/upload/c_thumb,w_300,h_300,pg_1/').replace('.pdf', '.jpg');
+            // PDFs uploaded as raw can't generate thumbnails, use placeholder
+            thumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658672/scout/placeholders/pdf-icon.svg';
+        } else if (type === 'presentation') {
+            // Presentations uploaded as raw can't generate thumbnails, use placeholder
+            thumbnailUrl = 'https://res.cloudinary.com/du7ltlmlh/image/upload/v1769658674/scout/placeholders/ppt-icon.svg';
         }
 
         return {
