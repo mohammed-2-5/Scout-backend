@@ -3,16 +3,17 @@ const db = require('../utils/database');
 class Content {
   static async create(data) {
     const sql = `
-      INSERT INTO content (title, title_ar, description, category_id, type, file_path,
+      INSERT INTO content (title, title_ar, description, description_ar, category_id, type, file_path,
                           file_url, thumbnail_path, thumbnail_url, file_size, mime_type,
                           tags, is_featured)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
       data.title,
       data.title_ar || data.title,
       data.description || '',
+      data.description_ar || '',
       data.category_id || null,
       data.type,
       data.file_path,
@@ -62,9 +63,9 @@ class Content {
     }
 
     if (filters.search) {
-      sql += ' AND (c.title LIKE ? OR c.title_ar LIKE ? OR c.description LIKE ?)';
+      sql += ' AND (c.title LIKE ? OR c.title_ar LIKE ? OR c.description LIKE ? OR c.description_ar LIKE ?)';
       const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
     // Sorting
@@ -96,9 +97,9 @@ class Content {
     }
 
     if (filters.search) {
-      sql += ' AND (title LIKE ? OR title_ar LIKE ? OR description LIKE ?)';
+      sql += ' AND (title LIKE ? OR title_ar LIKE ? OR description LIKE ? OR description_ar LIKE ?)';
       const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
     }
 
     const result = await db.get(sql, params);
@@ -116,6 +117,10 @@ class Content {
     if (data.description) {
       fields.push('description = ?');
       params.push(data.description);
+    }
+    if (data.description_ar) {
+      fields.push('description_ar = ?');
+      params.push(data.description_ar);
     }
     if (data.category_id !== undefined) {
       fields.push('category_id = ?');

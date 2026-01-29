@@ -128,6 +128,7 @@ class UploadController {
         title: displayTitle,
         title_ar: metadata.title_ar || displayTitle,
         description: metadata.description || '',
+        description_ar: metadata.description_ar || '',
         category_id: metadata.category_id || null,
         type: type,
         file_path: cloudinaryResult.publicId,
