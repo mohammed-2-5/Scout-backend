@@ -46,42 +46,41 @@ const consoleFormat = winston.format.combine(
   )
 );
 
-// Define transports
+// On serverless platforms (Vercel) the filesystem is read-only outside /tmp,
+// so file-based log rotation crashes the process at startup. Use console-only there.
+const isServerless = !!(process.env.VERCEL || process.env.SERVERLESS || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 const transports = [
-  // Console transport
-  new winston.transports.Console({
-    format: consoleFormat
-  }),
-
-  // Error log file - rotates daily, keeps for 30 days
-  new winston.transports.DailyRotateFile({
-    filename: path.join('logs', 'error-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'error',
-    format: format,
-    maxFiles: '30d',
-    maxSize: '20m'
-  }),
-
-  // Combined log file - all logs, rotates daily
-  new winston.transports.DailyRotateFile({
-    filename: path.join('logs', 'combined-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    format: format,
-    maxFiles: '14d',
-    maxSize: '20m'
-  }),
-
-  // HTTP requests log
-  new winston.transports.DailyRotateFile({
-    filename: path.join('logs', 'http-%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    level: 'http',
-    format: format,
-    maxFiles: '7d',
-    maxSize: '20m'
-  })
+  new winston.transports.Console({ format: consoleFormat })
 ];
+
+if (!isServerless) {
+  transports.push(
+    new winston.transports.DailyRotateFile({
+      filename: path.join('logs', 'error-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      format: format,
+      maxFiles: '30d',
+      maxSize: '20m'
+    }),
+    new winston.transports.DailyRotateFile({
+      filename: path.join('logs', 'combined-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      format: format,
+      maxFiles: '14d',
+      maxSize: '20m'
+    }),
+    new winston.transports.DailyRotateFile({
+      filename: path.join('logs', 'http-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      level: 'http',
+      format: format,
+      maxFiles: '7d',
+      maxSize: '20m'
+    })
+  );
+}
 
 // Create the logger
 const logger = winston.createLogger({
