@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": { "includeFiles": ["database/**", "src/**", "admin/**"] }
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "server.js" }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "API_PREFIX": "/api/v1",
+    "ALLOWED_ORIGINS": "*",
+    "DATABASE_PATH": "./database/scout.db"
+  }
+}

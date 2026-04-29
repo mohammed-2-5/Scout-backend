@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 class Database {
@@ -9,7 +10,17 @@ class Database {
 
   connect() {
     return new Promise((resolve, reject) => {
-      const dbPath = path.resolve(process.env.DATABASE_PATH || './database/scout.db');
+      let dbPath = path.resolve(process.env.DATABASE_PATH || './database/scout.db');
+
+      // On Vercel/serverless, the filesystem is read-only except /tmp.
+      // Copy the bundled SQLite file to /tmp on cold start so writes work.
+      if (process.env.VERCEL || process.env.SERVERLESS) {
+        const tmpPath = '/tmp/scout.db';
+        if (!fs.existsSync(tmpPath) && fs.existsSync(dbPath)) {
+          fs.copyFileSync(dbPath, tmpPath);
+        }
+        dbPath = tmpPath;
+      }
 
       this.db = new sqlite3.Database(dbPath, (err) => {
         if (err) {

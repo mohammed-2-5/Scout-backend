@@ -52,6 +52,27 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
+// Lazy DB init — required for serverless (Vercel) where there is no startup hook.
+// First request triggers connect(); subsequent requests reuse the same connection.
+let dbReady = null;
+async function ensureDb() {
+  if (!dbReady) {
+    dbReady = db.connect()
+      .then(() => logger.info('Database initialized successfully'))
+      .catch((err) => { dbReady = null; throw err; });
+  }
+  return dbReady;
+}
+
+app.use(async (req, res, next) => {
+  try {
+    await ensureDb();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Custom handler for /uploads/* - checks local file first, then falls back to Cloudinary
 const fs = require('fs');
 
@@ -211,12 +232,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize database and start server
+// Traditional standalone server (used locally and on non-serverless hosts).
 async function startServer() {
   try {
-    await db.connect();
-    logger.info('Database initialized successfully');
-
+    await ensureDb();
     app.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📝 API: http://localhost:${PORT}${apiPrefix}`);
@@ -229,7 +248,7 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
+// Graceful shutdown (no-op on serverless)
 process.on('SIGINT', async () => {
   logger.info('🛑 Shutting down gracefully...');
   await db.close();
@@ -242,4 +261,8 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+module.exports = app;
