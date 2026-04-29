@@ -29,6 +29,17 @@ class Content {
     return await db.run(sql, params);
   }
 
+  static async findByFilename(filename) {
+    const like = `%${filename}%`;
+    const sql = `
+      SELECT id, file_path, file_url, thumbnail_path, thumbnail_url
+      FROM content
+      WHERE file_path LIKE ? OR thumbnail_path LIKE ?
+      LIMIT 1
+    `;
+    return await db.get(sql, [like, like]);
+  }
+
   static async findById(id) {
     const sql = `
       SELECT c.*, cat.name as category_name, cat.name_ar as category_name_ar

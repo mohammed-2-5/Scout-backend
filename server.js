@@ -54,48 +54,59 @@ app.use('/api/', limiter);
 
 // Custom handler for /uploads/* - checks local file first, then falls back to Cloudinary
 const fs = require('fs');
-app.use('/uploads', async (req, res, next) => {
+
+// Simple TTL cache for /uploads lookups (avoids re-querying DB for same files)
+const UPLOADS_CACHE_TTL_MS = 5 * 60 * 1000;
+const UPLOADS_CACHE_MAX = 1000;
+const uploadsCache = new Map(); // key: req.path, value: { url: string|null, expires: number }
+
+function cacheGet(key) {
+  const entry = uploadsCache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires < Date.now()) {
+    uploadsCache.delete(key);
+    return undefined;
+  }
+  return entry.url;
+}
+
+function cacheSet(key, url) {
+  if (uploadsCache.size >= UPLOADS_CACHE_MAX) {
+    uploadsCache.delete(uploadsCache.keys().next().value);
+  }
+  uploadsCache.set(key, { url, expires: Date.now() + UPLOADS_CACHE_TTL_MS });
+}
+
+app.use('/uploads', async (req, res) => {
   const localPath = path.join(__dirname, 'uploads', req.path);
 
-  // Check if file exists locally
   if (fs.existsSync(localPath)) {
     return res.sendFile(localPath);
   }
 
-  // File doesn't exist locally - try to find Cloudinary URL from database
+  const cached = cacheGet(req.path);
+  if (cached === null) {
+    return res.status(404).json({ success: false, message: 'File not found' });
+  }
+  if (cached) {
+    return res.redirect(cached);
+  }
+
   try {
     const Content = require('./src/models/Content');
     const filename = path.basename(req.path);
     const isThumbnail = req.path.includes('/thumbnails/');
 
-    // Search for content with matching filename
-    const allContent = await Content.findAll({ limit: 2000 });
+    const row = await Content.findByFilename(filename);
+    const redirectUrl = row && (isThumbnail ? row.thumbnail_url : row.file_url);
 
-    for (const item of allContent) {
-      const itemFilePath = item.file_path || '';
-      const itemThumbnailPath = item.thumbnail_path || '';
-      const itemFilename = path.basename(itemFilePath);
-      const itemThumbnailFilename = path.basename(itemThumbnailPath);
-
-      // Match by exact filename or partial match
-      const filenameClean = filename.replace(/\.[^/.]+$/, '').replace('_thumb', '');
-
-      const isMatch =
-        itemFilename === filename ||
-        itemThumbnailFilename === filename ||
-        filename.includes(filenameClean) ||
-        itemFilename.includes(filenameClean);
-
-      if (isMatch) {
-        const redirectUrl = isThumbnail ? item.thumbnail_url : item.file_url;
-
-        if (redirectUrl && redirectUrl.startsWith('http')) {
-          logger.info(`📁 Redirect: ${req.path} → ${redirectUrl}`);
-          return res.redirect(redirectUrl);
-        }
-      }
+    if (redirectUrl && redirectUrl.startsWith('http')) {
+      cacheSet(req.path, redirectUrl);
+      logger.info(`📁 Redirect: ${req.path} → ${redirectUrl}`);
+      return res.redirect(redirectUrl);
     }
 
+    cacheSet(req.path, null); // negative cache
     logger.warn(`📁 Not found: ${req.path}`);
     res.status(404).json({ success: false, message: 'File not found' });
   } catch (error) {
